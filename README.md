@@ -1,29 +1,60 @@
-![BookBot — animated project cover](readme-assets/cover.gif)
+![BookBot — letters rising from an open book in an engraved printing workshop](readme-assets/cover.png)
 
 # BookBot
 
-**Turn a plain-text book into a word and character report.**
+**Explore the words, letters, and vocabulary inside your books.**
 
-BookBot reads a book, counts its words, and ranks alphabetic characters by frequency. A small command-line project that makes Python file handling, dictionaries, and sorting visible in one useful result.
+BookBot reads text one line at a time, preserves the original word and letter counts, and adds vocabulary rankings, reading-time estimates, and multi-book comparisons. Export readable text, structured JSON, or a CSV summary without third-party dependencies.
 
 ## <img src="readme-assets/run.svg" width="24" height="24" alt=""> Analyze a book
 
-Requires **Python 3**. No third-party dependencies.
+Requires **Python 3.10+**. No third-party dependencies or API keys.
 
 ```bash
-python3 main.py books/frankenstein.txt
+./launch
 ```
 
 Try the other bundled books:
 
 ```bash
-python3 main.py books/mobydick.txt
-python3 main.py books/prideandprejudice.txt
+./launch books/mobydick.txt
+./launch books/prideandprejudice.txt
 ```
 
-![Actual BookBot report for the bundled Frankenstein text](readme-assets/report.png)
+![Original word and character report for the bundled Frankenstein text](readme-assets/report.png)
 
-The report shows the total word count followed by letters in descending frequency. Character counting is case-insensitive; only alphabetic characters appear in the printed report. Words are separated by whitespace.
+<sub>The original counts remain unchanged; current reports also include insights and top words.</sub>
+
+Run `./launch` to analyze the bundled Frankenstein book, or pass one or more file paths. The launcher works from another directory when invoked by absolute path. The direct command remains `python3 main.py books/frankenstein.txt`.
+
+```bash
+./launch books/frankenstein.txt books/mobydick.txt --top 15 --min-word-length 5 --exclude their
+./launch books/frankenstein.txt --format json --output reports/frankenstein.json
+./launch books/*.txt --format csv --output reports/comparison.csv
+```
+
+| Option | What it controls |
+| --- | --- |
+| `--top N` | Number of ranked words; default 10 |
+| `--min-word-length N` | Minimum length for word rankings; default 1 |
+| `--exclude WORD` | Exclude a word from rankings; repeat for several words |
+| `--reading-wpm N` | Reading-speed estimate; default 250 words per minute |
+| `--encoding NAME` | Input encoding; default UTF-8 |
+| `--format text/json/csv` | Readable report, full structured analysis, or summary rows |
+| `--output PATH` | Save instead of printing; creates parent directories |
+
+### Counting rules
+
+- **Word count:** whitespace-separated tokens, preserving the course definition.
+- **Letters:** lowercase character counts, alphabetic characters only, sorted by frequency and alphabetically on ties.
+- **Vocabulary:** Unicode letter tokens, with optional internal apostrophes. Casefolding merges forms such as `Straße` and `STRASSE`; curly and straight apostrophes are equivalent. Numbers are excluded. This is a simple tokenizer, not a language-specific word segmenter.
+- **Vocabulary percentage:** unique normalized vocabulary divided by all letter tokens. Filters affect rankings only.
+- **Reading time:** whitespace word count divided by the selected words per minute, rounded up; empty books take zero minutes.
+- **Characters and lines:** decoded code points and physical text lines, preserving line endings. No sentence/readability model is implied.
+
+JSON always contains a list of book analyses, including letter counts and top words. CSV contains one summary row per book. Multiple-book text reports include a comparison table. The file is streamed by line; memory use grows with distinct vocabulary and the longest line rather than the full book.
+
+Input failures return status 1 with a concise error; invalid CLI arguments return status 2. Use `--encoding` when a text file is not UTF-8. Every input must succeed before a report is written. Reports are replaced atomically, and the CLI rejects using an input book as the output path.
 
 ## <img src="readme-assets/design.svg" width="24" height="24" alt=""> From text to statistics
 
@@ -31,13 +62,22 @@ The report shows the total word count followed by letters in descending frequenc
 
 | File | Responsibility |
 | --- | --- |
-| `main.py` | Read the supplied path and print the report |
-| `stats.py` | Count words and characters; sort frequencies |
+| `main.py` | CLI, text/JSON/CSV reports, and atomic output |
+| `stats.py` | Streaming analysis, vocabulary, and counting helpers |
 | `books/` | Three bundled books to explore |
+| `test_bookbot.py` | Counting, Unicode, CLI, exports, and launcher checks |
 
 ## <img src="readme-assets/learn.svg" width="24" height="24" alt=""> What this project teaches
 
-Reading files, working with dictionaries, sorting by a key, and accepting command-line arguments. Supply a readable plain-text file; omitting the path prints usage and exits with status 1.
+Reading files, working with counters and dictionaries, deterministic sorting, Unicode normalization, dataclasses, CLI design, and structured exports.
+
+## Verify
+
+```bash
+python3 -m unittest -v
+```
+
+The tests need no external services. They compare all bundled books against the original counting functions, test the launcher from another directory, and exercise empty text, Unicode, filters, encoding errors, multiple-book exports, and atomic-write recovery. GitHub Actions runs the checks on Python 3.10 and 3.13.
 
 ---
 

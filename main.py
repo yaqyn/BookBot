@@ -1,36 +1,201 @@
-from stats import get_book_count
-from stats import get_book_dict
-from stats import sort_on
-from stats import chars_dict_sorted_list
+"""Analyze one or more plain-text books with readable or structured reports."""
+
+import argparse
+import csv
+import io
+import json
+import os
+from pathlib import Path
 import sys
+import tempfile
 
-#TEXT
-def get_book_text(PATH_TO_BOOK):
-    with open(PATH_TO_BOOK) as f:
-        file_contents = f.read()
-    return file_contents
+from stats import analyze_book, get_book_count, get_book_dict, chars_dict_sorted_list
 
-def print_report (book_path, wc, letters_sort):
-    print (f"============ BOOKBOT ============\nAnalyzing book found at {book_path}...")
-    print (f"----------- Word Count ----------\nFound {wc} total words")
-    print ("--------- Character Count -------")
+
+def get_book_text(path, encoding="utf-8"):
+    with open(path, encoding=encoding) as book:
+        return book.read()
+
+
+def print_report(book_path, wc, letters_sort):
+    """Retain the original course report helper."""
+    print(f"============ BOOKBOT ============\nAnalyzing book found at {book_path}...")
+    print(f"----------- Word Count ----------\nFound {wc} total words")
+    print("--------- Character Count -------")
     for letter, count in letters_sort:
         if letter.isalpha():
             print(f"{letter}: {count}")
+    print("============= END ===============")
+
+
+def positive_int(value):
+    result = int(value)
+    if result < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return result
+
+
+def render_text(books):
+    reports = []
+    for book in books:
+        lines = [
+            "============ BOOKBOT ============",
+            f"Analyzing book found at {book.path}...",
+            "----------- Word Count ----------",
+            f"Found {book.word_count} total words",
+            "--------- Character Count -------",
+        ]
+        lines.extend(
+            f"{entry['character']}: {entry['count']}" for entry in book.letters
+        )
+        lines.extend(
+            [
+                "------------ Insights -----------",
+                f"Characters: {book.character_count:,} | Lines: {book.line_count:,}",
+                f"Unique vocabulary: {book.unique_words:,} ({book.vocabulary_percent:.2f}% of letter tokens)",
+                f"Estimated reading time: {book.reading_minutes:,} minutes",
+                "------------ Top Words ----------",
+            ]
+        )
+        maximum = book.top_words[0]["count"] if book.top_words else 1
+        for entry in book.top_words:
+            bar = "#" * max(1, round(24 * entry["count"] / maximum))
+            lines.append(f"{entry['word']:<20} {entry['count']:>7,}  {bar}")
+        if not book.top_words:
+            lines.append("No words match the ranking filters.")
+        lines.append("============= END ===============")
+        reports.append("\n".join(lines))
+    if len(books) > 1:
+        lines = [
+            "----------- Comparison ----------",
+            f"{'Book':<32} {'Words':>10} {'Unique':>10} {'Minutes':>10}",
+        ]
+        for book in books:
+            lines.append(
+                f"{Path(book.path).name:<32} {book.word_count:>10,} {book.unique_words:>10,} {book.reading_minutes:>10,}"
+            )
+        reports.append("\n".join(lines))
+    return "\n\n".join(reports) + "\n"
+
+
+def render_report(books, format):
+    if format == "text":
+        return render_text(books)
+    if format == "json":
+        return (
+            json.dumps([book.to_dict() for book in books], indent=2, ensure_ascii=False)
+            + "\n"
+        )
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "path",
+            "word_count",
+            "character_count",
+            "alphabetic_count",
+            "line_count",
+            "unique_words",
+            "vocabulary_percent",
+            "reading_minutes",
+        ]
+    )
+    for book in books:
+        writer.writerow(
+            [
+                book.path,
+                book.word_count,
+                book.character_count,
+                book.alphabetic_count,
+                book.line_count,
+                book.unique_words,
+                book.vocabulary_percent,
+                book.reading_minutes,
+            ]
+        )
+    return output.getvalue()
+
+
+def write_output(path, content):
+    """Atomically replace a report, preserving existing output on write errors."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as report:
+            temporary = report.name
+            report.write(content)
+        os.replace(temporary, path)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Count, rank, and compare plain-text books"
+    )
+    parser.add_argument(
+        "books", nargs="+", type=Path, help="One or more plain-text files"
+    )
+    parser.add_argument("--format", choices=["text", "json", "csv"], default="text")
+    parser.add_argument(
+        "--output", type=Path, help="Write a report instead of printing it"
+    )
+    parser.add_argument("--encoding", default="utf-8")
+    parser.add_argument("--top", type=positive_int, default=10)
+    parser.add_argument("--min-word-length", type=positive_int, default=1)
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="Exclude a word from rankings; repeatable",
+    )
+    parser.add_argument("--reading-wpm", type=positive_int, default=250)
+    args = parser.parse_args(argv)
+    if args.output and any(
+        args.output.resolve() == book.resolve() for book in args.books
+    ):
+        parser.error("Output must differ from every input book")
+    books = []
+    for path in args.books:
+        try:
+            books.append(
+                analyze_book(
+                    path,
+                    encoding=args.encoding,
+                    top=args.top,
+                    min_word_length=args.min_word_length,
+                    exclude=args.exclude,
+                    reading_wpm=args.reading_wpm,
+                )
+            )
+        except (OSError, UnicodeError, LookupError) as error:
+            print(f"Error reading {path}: {error}", file=sys.stderr)
+            return 1
+    try:
+        report = render_report(books, args.format)
+        if args.output:
+            write_output(args.output, report)
+            print(
+                f"Saved {len(books)} book report(s) to {args.output}", file=sys.stderr
+            )
         else:
-            continue
-    print ("============= END ===============")
-#MAIN
-def main():
-    if len(sys.argv) < 2:
-        print ("Usage: python3 main.py <path_to_book>")
-        sys.exit(1)
-    book = get_book_text(sys.argv[1])
-    words = get_book_count(book)
-    letters_dict = get_book_dict(book)
-    letters_sort = chars_dict_sorted_list(letters_dict)
-    print_report(sys.argv[1], words, letters_sort)
+            sys.stdout.write(report)
+        return 0
+    except BrokenPipeError:
+        return 0
+    except OSError as error:
+        print(f"Error writing report: {error}", file=sys.stderr)
+        return 1
 
 
-# start
-main()
+if __name__ == "__main__":
+    raise SystemExit(main())
