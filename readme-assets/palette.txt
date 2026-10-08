@@ -1,0 +1,5 @@
+Cover and README visual palette
+Accent: #dfb76c
+Background: #30100e
+Surface: #4b1b16
+Text: #f8e8c6
