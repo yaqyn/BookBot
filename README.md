@@ -1,10 +1,10 @@
-![BookBot — letters rising from an open book in an engraved printing workshop](readme-assets/cover.png)
+![TextScope — letters rising from an open book in an engraved printing workshop](readme-assets/cover.png)
 
-# BookBot
+# TextScope
 
 **Explore the words, letters, and vocabulary inside your books.**
 
-BookBot reads text one line at a time, preserves the original word and letter counts, and adds vocabulary rankings, reading-time estimates, and multi-book comparisons. Export readable text, structured JSON, or a CSV summary without third-party dependencies.
+TextScope reads text one line at a time, preserves the original word and letter counts, and adds vocabulary rankings, reading-time estimates, and multi-book comparisons. Export readable text, structured JSON, or a CSV summary without third-party dependencies.
 
 ## <img src="readme-assets/run.svg" width="24" height="24" alt=""> Analyze a book
 
@@ -58,14 +58,14 @@ Input failures return status 1 with a concise error; invalid CLI arguments retur
 
 ## <img src="readme-assets/design.svg" width="24" height="24" alt=""> From text to statistics
 
-![BookBot workflow: read, count, rank, print](readme-assets/workflow.svg)
+![TextScope workflow: read, count, rank, print](readme-assets/workflow.svg)
 
 | File | Responsibility |
 | --- | --- |
 | `main.py` | CLI, text/JSON/CSV reports, and atomic output |
 | `stats.py` | Streaming analysis, vocabulary, and counting helpers |
 | `books/` | Three bundled books to explore |
-| `test_bookbot.py` | Counting, Unicode, CLI, exports, and launcher checks |
+| `test_textscope.py` | Counting, Unicode, CLI, exports, and launcher checks |
 
 ## <img src="readme-assets/learn.svg" width="24" height="24" alt=""> What this project teaches
 
