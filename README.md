@@ -1,6 +1,6 @@
 ![TextScope — letters rising from an open book in an engraved printing workshop](readme-assets/cover.png)
 
-# TextScope
+# TextScope — Text Analyzer
 
 **Explore the words, letters, and vocabulary inside your books.**
 
