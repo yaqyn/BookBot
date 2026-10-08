@@ -19,7 +19,7 @@ def get_book_text(path, encoding="utf-8"):
 
 def print_report(book_path, wc, letters_sort):
     """Retain the original course report helper."""
-    print(f"============ BOOKBOT ============\nAnalyzing book found at {book_path}...")
+    print(f"============ TEXTSCOPE ============\nAnalyzing book found at {book_path}...")
     print(f"----------- Word Count ----------\nFound {wc} total words")
     print("--------- Character Count -------")
     for letter, count in letters_sort:
@@ -39,7 +39,7 @@ def render_text(books):
     reports = []
     for book in books:
         lines = [
-            "============ BOOKBOT ============",
+            "============ TEXTSCOPE ============",
             f"Analyzing book found at {book.path}...",
             "----------- Word Count ----------",
             f"Found {book.word_count} total words",

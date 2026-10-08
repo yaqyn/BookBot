@@ -14,7 +14,7 @@ from stats import analyze_book, get_book_count, get_book_dict, chars_dict_sorted
 ROOT = Path(__file__).resolve().parent
 
 
-class BookBotTests(unittest.TestCase):
+class TextScopeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

@@ -1,5 +1,5 @@
 [project]
-name = "bookbot"
+name = "textscope"
 version = "0.2.0"
 description = "Dependency-free book analysis, vocabulary rankings, and report exports"
 readme = "README.md"
